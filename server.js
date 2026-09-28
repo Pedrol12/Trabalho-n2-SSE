@@ -10,8 +10,6 @@ app.use(express.json());
 // SILOS EM MEMÓRIA
 // ======================================================
 
-// Alguns valores começam próximos/acima dos limites
-// para facilitar os testes das automações.
 const silos = [
     {
         id: 1,
@@ -24,6 +22,8 @@ const silos = [
 
         comporta: "FECHADA",
         exaustor: "DESLIGADO",
+
+        modoOperacao: "AUTOMATICO",
 
         alarme: "NORMAL",
         statusCarga: "LIBERADO",
@@ -49,6 +49,8 @@ const silos = [
         comporta: "FECHADA",
         exaustor: "DESLIGADO",
 
+        modoOperacao: "AUTOMATICO",
+
         alarme: "NORMAL",
         statusCarga: "LIBERADO",
 
@@ -73,6 +75,8 @@ const silos = [
         comporta: "FECHADA",
         exaustor: "DESLIGADO",
 
+        modoOperacao: "AUTOMATICO",
+
         alarme: "NORMAL",
         statusCarga: "LIBERADO",
 
@@ -86,16 +90,14 @@ const silos = [
     }
 ];
 
-// Clientes conectados ao SSE
 const clientesSSE = new Set();
 
-// Últimas 20 ocorrências
 const logsAuditoria = [];
 
 let proximoIdLog = 1;
 
 // ======================================================
-// FUNÇÕES AUXILIARES
+// AUXILIARES
 // ======================================================
 
 function limitar(
@@ -123,6 +125,13 @@ function variar(
         valor + diferenca,
         minimo,
         maximo
+    );
+}
+
+function buscarSilo(id) {
+    return silos.find(
+        (silo) =>
+            silo.id === Number(id)
     );
 }
 
@@ -158,14 +167,15 @@ function transmitirEvento(
 }
 
 // ======================================================
-// LOG DE AUDITORIA
+// LOG
 // ======================================================
 
 function registrarLog(
     silo,
     tipo,
     descricao,
-    origem = "AUTOMATICO"
+    origem = "AUTOMATICO",
+    operadorId = null
 ) {
     const registro = {
         id: proximoIdLog++,
@@ -183,13 +193,16 @@ function registrarLog(
 
         descricao,
 
-        origem
+        origem,
+
+        operadorId
     };
 
     logsAuditoria.push(registro);
 
-    // Mantém somente as últimas 20 ocorrências
-    if (logsAuditoria.length > 20) {
+    if (
+        logsAuditoria.length > 20
+    ) {
         logsAuditoria.shift();
     }
 
@@ -204,7 +217,7 @@ function registrarLog(
 }
 
 // ======================================================
-// ALERTAS SSE
+// ALERTAS
 // ======================================================
 
 function emitirAlerta(
@@ -242,7 +255,7 @@ function emitirAlerta(
 }
 
 // ======================================================
-// MOTOR DE AUTOMAÇÃO
+// AUTOMAÇÃO
 // ======================================================
 
 function aplicarAutomacoes(silo) {
@@ -261,8 +274,6 @@ function aplicarAutomacoes(silo) {
     const capacidadeMaxima =
         silo.nivel >= 98;
 
-    // Guarda todos os estados calculados
-    // pelo servidor para o frontend apenas renderizar.
     silo.alertas = {
         co2Atencao,
         co2Critico,
@@ -272,60 +283,60 @@ function aplicarAutomacoes(silo) {
     };
 
     // ==================================================
-    // CO2 >= 1500
-    // ABRE COMPORTA AUTOMATICAMENTE
+    // AUTOMAÇÕES DE ATUADORES
+    // Só funcionam em modo AUTOMATICO
     // ==================================================
 
     if (
-        co2Critico &&
-        silo.comporta !== "ABERTA"
+        silo.modoOperacao ===
+        "AUTOMATICO"
     ) {
-        silo.comporta =
-            "ABERTA";
+        if (
+            co2Critico &&
+            silo.comporta !== "ABERTA"
+        ) {
+            silo.comporta =
+                "ABERTA";
 
-        registrarLog(
-            silo,
-            "COMPORTA_AUTOMATICA",
-            `Comporta aberta automaticamente. CO2 em ${silo.co2} ppm.`
-        );
+            registrarLog(
+                silo,
+                "COMPORTA_AUTOMATICA",
+                `Comporta aberta automaticamente. CO2 em ${silo.co2} ppm.`
+            );
 
-        emitirAlerta(
-            "automation_alert",
-            silo,
-            "ALTA",
-            `CO2 crítico no ${silo.codigo}. Comporta aberta automaticamente.`
-        );
+            emitirAlerta(
+                "automation_alert",
+                silo,
+                "ALTA",
+                `CO2 crítico no ${silo.codigo}. Comporta aberta automaticamente.`
+            );
+        }
+
+        if (
+            temperaturaAlta &&
+            silo.exaustor !== "LIGADO"
+        ) {
+            silo.exaustor =
+                "LIGADO";
+
+            registrarLog(
+                silo,
+                "EXAUSTOR_AUTOMATICO",
+                `Exaustor ligado automaticamente. Temperatura em ${silo.temperatura}°C.`
+            );
+
+            emitirAlerta(
+                "automation_alert",
+                silo,
+                "ALTA",
+                `Temperatura elevada no ${silo.codigo}. Exaustor ligado automaticamente.`
+            );
+        }
     }
 
     // ==================================================
-    // TEMPERATURA >= 30
-    // LIGA EXAUSTOR AUTOMATICAMENTE
-    // ==================================================
-
-    if (
-        temperaturaAlta &&
-        silo.exaustor !== "LIGADO"
-    ) {
-        silo.exaustor =
-            "LIGADO";
-
-        registrarLog(
-            silo,
-            "EXAUSTOR_AUTOMATICO",
-            `Exaustor ligado automaticamente. Temperatura em ${silo.temperatura}°C.`
-        );
-
-        emitirAlerta(
-            "automation_alert",
-            silo,
-            "ALTA",
-            `Temperatura elevada no ${silo.codigo}. Exaustor ligado automaticamente.`
-        );
-    }
-
-    // ==================================================
-    // NÍVEL >= 98%
-    // BLOQUEIA CARGA
+    // CAPACIDADE
+    // Continua sendo regra de segurança
     // ==================================================
 
     const novoStatusCarga =
@@ -337,9 +348,6 @@ function aplicarAutomacoes(silo) {
         silo.statusCarga !==
         novoStatusCarga
     ) {
-        const statusAnterior =
-            silo.statusCarga;
-
         silo.statusCarga =
             novoStatusCarga;
 
@@ -360,13 +368,13 @@ function aplicarAutomacoes(silo) {
             registrarLog(
                 silo,
                 "LIBERACAO_CARGA",
-                `Carga liberada. Nível do silo caiu para ${silo.nivel}%. Estado anterior: ${statusAnterior}.`
+                `Carga liberada. Nível do silo em ${silo.nivel}%.`
             );
         }
     }
 
     // ==================================================
-    // DEFINE O ALARME PRINCIPAL
+    // ALARME
     // ==================================================
 
     let novoAlarme =
@@ -375,12 +383,15 @@ function aplicarAutomacoes(silo) {
     if (temperaturaCritica) {
         novoAlarme =
             "CRITICO_TEMPERATURA";
+
     } else if (co2Critico) {
         novoAlarme =
             "CO2_CRITICO";
+
     } else if (co2Atencao) {
         novoAlarme =
             "CO2_ELEVADO";
+
     } else if (temperaturaAlta) {
         novoAlarme =
             "ALERTA_TEMPERATURA";
@@ -392,8 +403,6 @@ function aplicarAutomacoes(silo) {
     silo.alarme =
         novoAlarme;
 
-    // Só registra quando o estado muda.
-    // Assim não criamos o mesmo log a cada 2 segundos.
     if (
         novoAlarme !== alarmeAnterior &&
         novoAlarme !== "NORMAL"
@@ -404,11 +413,6 @@ function aplicarAutomacoes(silo) {
             `Alarme alterado de ${alarmeAnterior} para ${novoAlarme}.`
         );
 
-        // ==================================================
-        // TEMPERATURA >= 35
-        // EVENTO EMERGENCIAL
-        // ==================================================
-
         if (temperaturaCritica) {
             emitirAlerta(
                 "critical_alarm",
@@ -416,14 +420,8 @@ function aplicarAutomacoes(silo) {
                 "CRITICA",
                 `RISCO DE SUPERAQUECIMENTO no ${silo.codigo}: ${silo.temperatura}°C.`
             );
-        }
 
-        // ==================================================
-        // CO2 >= 1000
-        // ALERTA DE ATENÇÃO
-        // ==================================================
-
-        else if (co2Atencao) {
+        } else if (co2Atencao) {
             emitirAlerta(
                 "automation_alert",
                 silo,
@@ -433,13 +431,8 @@ function aplicarAutomacoes(silo) {
 
                 `CO2 elevado no ${silo.codigo}: ${silo.co2} ppm.`
             );
-        }
 
-        // ==================================================
-        // TEMP >= 30 E < 35
-        // ==================================================
-
-        else if (temperaturaAlta) {
+        } else if (temperaturaAlta) {
             emitirAlerta(
                 "automation_alert",
                 silo,
@@ -452,7 +445,7 @@ function aplicarAutomacoes(silo) {
 }
 
 // ======================================================
-// SIMULAÇÃO DOS SENSORES
+// SIMULAÇÃO
 // ======================================================
 
 function atualizarSensores() {
@@ -497,14 +490,12 @@ function atualizarSensores() {
                 ).toFixed(1)
             );
 
-        // Depois da leitura,
-        // o servidor avalia as regras.
         aplicarAutomacoes(silo);
     }
 }
 
 // ======================================================
-// ESTADO DOS SILOS
+// ESTADO
 // ======================================================
 
 function obterEstadoSilos() {
@@ -533,7 +524,7 @@ function transmitirSensores() {
 }
 
 // ======================================================
-// ROTAS HTTP
+// ROTAS DE CONSULTA
 // ======================================================
 
 app.get(
@@ -545,7 +536,6 @@ app.get(
     }
 );
 
-// Estado atual
 app.get(
     "/api/silos",
     (req, res) => {
@@ -555,17 +545,12 @@ app.get(
     }
 );
 
-// Consulta um silo específico
 app.get(
     "/api/silos/:id",
     (req, res) => {
-        const id =
-            Number(req.params.id);
-
         const silo =
-            silos.find(
-                (item) =>
-                    item.id === id
+            buscarSilo(
+                req.params.id
             );
 
         if (!silo) {
@@ -581,7 +566,6 @@ app.get(
     }
 );
 
-// Consulta as últimas 20 ocorrências
 app.get(
     "/api/logs",
     (req, res) => {
@@ -596,7 +580,294 @@ app.get(
 );
 
 // ======================================================
-// CONEXÃO SSE
+// CONTROLE MANUAL DOS ATUADORES
+// ======================================================
+
+app.post(
+    "/api/silos/:id/atuadores",
+    (req, res) => {
+        const silo =
+            buscarSilo(
+                req.params.id
+            );
+
+        if (!silo) {
+            return res
+                .status(404)
+                .json({
+                    sucesso: false,
+                    erro:
+                        "Silo não encontrado."
+                });
+        }
+
+        const {
+            comportaComando = "MANTER",
+            exaustorComando = "MANTER",
+            operadorId = "OPERADOR-NAO-INFORMADO"
+        } = req.body;
+
+        const comporta =
+            String(
+                comportaComando
+            ).toUpperCase();
+
+        const exaustor =
+            String(
+                exaustorComando
+            ).toUpperCase();
+
+        const comandosComporta = [
+            "ABRIR",
+            "FECHAR",
+            "MANTER"
+        ];
+
+        const comandosExaustor = [
+            "LIGAR",
+            "DESLIGAR",
+            "MANTER"
+        ];
+
+        if (
+            !comandosComporta.includes(
+                comporta
+            )
+        ) {
+            return res
+                .status(400)
+                .json({
+                    sucesso: false,
+
+                    erro:
+                        "Comando de comporta inválido."
+                });
+        }
+
+        if (
+            !comandosExaustor.includes(
+                exaustor
+            )
+        ) {
+            return res
+                .status(400)
+                .json({
+                    sucesso: false,
+
+                    erro:
+                        "Comando de exaustor inválido."
+                });
+        }
+
+        // Ao usar um controle manual,
+        // o silo passa para modo MANUAL.
+        silo.modoOperacao =
+            "MANUAL";
+
+        registrarLog(
+            silo,
+            "MODO_OPERACAO",
+            `Modo alterado para MANUAL pelo operador ${operadorId}.`,
+            "MANUAL",
+            operadorId
+        );
+
+        // ==================================================
+        // COMPORTA
+        // ==================================================
+
+        if (comporta === "ABRIR") {
+            silo.comporta =
+                "ABERTA";
+
+            registrarLog(
+                silo,
+                "COMPORTA_MANUAL",
+                "Comporta aberta manualmente.",
+                "MANUAL",
+                operadorId
+            );
+        }
+
+        if (comporta === "FECHAR") {
+            silo.comporta =
+                "FECHADA";
+
+            registrarLog(
+                silo,
+                "COMPORTA_MANUAL",
+                "Comporta fechada manualmente.",
+                "MANUAL",
+                operadorId
+            );
+        }
+
+        // ==================================================
+        // EXAUSTOR
+        // ==================================================
+
+        if (exaustor === "LIGAR") {
+            silo.exaustor =
+                "LIGADO";
+
+            registrarLog(
+                silo,
+                "EXAUSTOR_MANUAL",
+                "Exaustor ligado manualmente.",
+                "MANUAL",
+                operadorId
+            );
+        }
+
+        if (exaustor === "DESLIGAR") {
+            silo.exaustor =
+                "DESLIGADO";
+
+            registrarLog(
+                silo,
+                "EXAUSTOR_MANUAL",
+                "Exaustor desligado manualmente.",
+                "MANUAL",
+                operadorId
+            );
+        }
+
+        // Informa imediatamente os clientes SSE
+        transmitirSensores();
+
+        transmitirEvento(
+            "actuator_update",
+            {
+                timestamp:
+                    new Date().toISOString(),
+
+                siloId:
+                    silo.id,
+
+                codigoSilo:
+                    silo.codigo,
+
+                comporta:
+                    silo.comporta,
+
+                exaustor:
+                    silo.exaustor,
+
+                modoOperacao:
+                    silo.modoOperacao,
+
+                operadorId
+            }
+        );
+
+        res.json({
+            sucesso: true,
+
+            mensagem:
+                "Comando manual executado com sucesso.",
+
+            silo: {
+                id:
+                    silo.id,
+
+                codigo:
+                    silo.codigo,
+
+                comporta:
+                    silo.comporta,
+
+                exaustor:
+                    silo.exaustor,
+
+                modoOperacao:
+                    silo.modoOperacao
+            }
+        });
+    }
+);
+
+// ======================================================
+// VOLTAR AO AUTOMÁTICO
+// ======================================================
+
+app.post(
+    "/api/silos/:id/automatico",
+    (req, res) => {
+        const silo =
+            buscarSilo(
+                req.params.id
+            );
+
+        if (!silo) {
+            return res
+                .status(404)
+                .json({
+                    sucesso: false,
+
+                    erro:
+                        "Silo não encontrado."
+                });
+        }
+
+        const operadorId =
+            req.body.operadorId ||
+            "OPERADOR-NAO-INFORMADO";
+
+        silo.modoOperacao =
+            "AUTOMATICO";
+
+        registrarLog(
+            silo,
+            "MODO_OPERACAO",
+            `Modo alterado para AUTOMATICO pelo operador ${operadorId}.`,
+            "MANUAL",
+            operadorId
+        );
+
+        // Ao retornar ao automático,
+        // as regras são avaliadas imediatamente.
+        aplicarAutomacoes(silo);
+
+        transmitirSensores();
+
+        transmitirEvento(
+            "actuator_update",
+            {
+                timestamp:
+                    new Date().toISOString(),
+
+                siloId:
+                    silo.id,
+
+                codigoSilo:
+                    silo.codigo,
+
+                comporta:
+                    silo.comporta,
+
+                exaustor:
+                    silo.exaustor,
+
+                modoOperacao:
+                    silo.modoOperacao,
+
+                operadorId
+            }
+        );
+
+        res.json({
+            sucesso: true,
+
+            mensagem:
+                "Silo retornou ao modo automático.",
+
+            silo
+        });
+    }
+);
+
+// ======================================================
+// SSE
 // ======================================================
 
 function conectarSSE(
@@ -618,11 +889,13 @@ function conectarSSE(
         "keep-alive"
     );
 
-    if (typeof res.flushHeaders === "function") {
+    if (
+        typeof res.flushHeaders ===
+        "function"
+    ) {
         res.flushHeaders();
     }
 
-    // Tentativa de reconexão em 3 segundos
     res.write(
         "retry: 3000\n\n"
     );
@@ -633,14 +906,12 @@ function conectarSSE(
         `Cliente SSE conectado. Total: ${clientesSSE.size}`
     );
 
-    // Envia o estado imediatamente
     enviarEvento(
         res,
         "sensor_update",
         obterEstadoSilos()
     );
 
-    // Envia também os logs atuais
     enviarEvento(
         res,
         "audit_log_snapshot",
@@ -662,14 +933,11 @@ function conectarSSE(
     );
 }
 
-// O trabalho cita /events
 app.get(
     "/events",
     conectarSSE
 );
 
-// Também mantemos a rota usada
-// na especificação de mensagens
 app.get(
     "/api/silos/stream",
     conectarSSE
@@ -713,6 +981,9 @@ setInterval(
                     exaustor:
                         silo.exaustor,
 
+                    modo:
+                        silo.modoOperacao,
+
                     alarme:
                         silo.alarme,
 
@@ -747,6 +1018,10 @@ app.listen(
 
         console.log(
             `Logs disponíveis em http://localhost:${PORT}/api/logs`
+        );
+
+        console.log(
+            "Controle manual: POST /api/silos/:id/atuadores"
         );
     }
 );
