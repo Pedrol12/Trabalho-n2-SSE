@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard - Monitoramento de Silos</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <header class="topo">
+        <h1>Monitoramento de Silos</h1>
+
+        <div class="topo-acoes">
+            <span id="badge-sse" class="badge badge-falha">● Conectando...</span>
+            <button id="btn-som" class="btn" type="button">🔇 Ativar som</button>
+
+            <label class="filtro">
+                <input type="checkbox" id="filtro-alertas"> Apenas Alertas
+            </label>
+        </div>
+    </header>
+
+    <div id="aviso" class="aviso" hidden></div>
+
+    <main id="grade" class="grade"></main>
+
+    <script type="module" src="js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Detalhe do Silo</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <header class="topo">
+        <h1 id="titulo">Detalhe do Silo</h1>
+        <div class="topo-acoes">
+            <span id="badge-sse" class="badge badge-falha">● Conectando...</span>
+            <a class="btn btn-sec" href="tela1-dashboard.html">← Voltar ao Dashboard</a>
+        </div>
+    </header>
+
+    <div id="erro" class="aviso critico" hidden></div>
+
+    <main class="detalhe">
+
+        <section class="card silo-visual">
+            <svg viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Desenho do silo">
+
+                <rect x="40" y="60" width="120" height="190" fill="#e9ecef" stroke="#495057" stroke-width="3"/>
+
+                <rect id="svg-nivel" x="40" y="250" width="120" height="0" fill="#1c7ed6"/>
+
+                <polygon points="35,60 100,15 165,60" fill="#868e96" stroke="#495057" stroke-width="3"/>
+
+                <circle id="svg-exaustor" cx="100" cy="40" r="10" fill="#adb5bd" stroke="#495057" stroke-width="2"/>
+
+                <rect id="svg-comporta" x="82" y="250" width="36" height="24" fill="#495057" stroke="#212529" stroke-width="2"/>
+
+                <text id="svg-texto" x="100" y="160" text-anchor="middle" font-size="22" font-weight="bold" fill="#212529">--%</text>
+            </svg>
+            <div class="silo-legenda">
+                <span>Comporta: <span id="leg-comporta">--</span></span>
+                <span>Exaustor: <span id="leg-exaustor">--</span></span>
+            </div>
+        </section>
+        <section id="painel-dados" class="card">
+            <div class="card-topo">
+                <h2 id="codigo">--</h2>
+                <span id="estado" class="estado">--</span>
+            </div>
+
+            <dl class="dados">
+                <div><dt>Temperatura</dt><dd id="v-temp">--</dd></div>
+                <div><dt>Umidade</dt><dd id="v-umid">--</dd></div>
+                <div><dt>CO2</dt><dd id="v-co2">--</dd></div>
+                <div><dt>Nível</dt><dd id="v-nivel">--</dd></div>
+                <div><dt>Comporta</dt><dd id="v-comporta">--</dd></div>
+                <div><dt>Exaustor</dt><dd id="v-exaustor">--</dd></div>
+                <div><dt>Modo</dt><dd id="v-modo">--</dd></div>
+                <div><dt>Carga</dt><dd id="v-carga">--</dd></div>
+            </dl>
+
+            <div class="acoes">
+                <a id="link-controle" class="btn" href="tela3-controle.html">Acessar Controle de Atuadores</a>
+                <a class="btn btn-sec" href="tela1-dashboard.html">Voltar ao Dashboard</a>
+            </div>
+        </section>

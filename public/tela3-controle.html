@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Controle de Atuadores</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <header class="topo">
+        <h1 id="titulo">Controle de Atuadores</h1>
+        <div class="topo-acoes">
+            <span id="badge-sse" class="badge badge-falha">● Conectando...</span>
+            <a id="link-detalhe" class="btn btn-sec" href="tela2-detalhe.html">Ver Detalhes</a>
+            <a class="btn btn-sec" href="tela1-dashboard.html">← Retornar ao Dashboard</a>
+        </div>
+    </header>
+
+    <div id="aviso" class="aviso" hidden></div>
+
+    <main class="controle">
+
+        <section id="painel-dados" class="card">
+            <div class="card-topo">
+                <h2 id="codigo">--</h2>
+                <span id="estado" class="estado">--</span>
+            </div>
+            <dl class="dados">
+                <div><dt>Temperatura</dt><dd id="c-temp">--</dd></div>
+                <div><dt>CO2</dt><dd id="c-co2">--</dd></div>
+                <div><dt>Nível</dt><dd id="c-nivel">--</dd></div>
+                <div><dt>Carga</dt><dd id="c-carga">--</dd></div>
+                <div><dt>Comporta</dt><dd id="c-comporta">--</dd></div>
+                <div><dt>Exaustor</dt><dd id="c-exaustor">--</dd></div>
+            </dl>
+        </section>
+        <section class="painel-bloco">
+            <h2>Modo de operação</h2>
+            <div class="modo-linha">
+                <span>Automático</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-modo" aria-label="Alternar modo manual">
+                    <span class="slider"></span>
+                </label>
+                <span>Manual</span>
+                <strong id="rotulo-modo">--</strong>
+            </div>
+            <p id="dica-modo"></p>
+
+            <h2>Comandos</h2>
+            <div class="comandos">
+                <button id="btn-abrir"    class="btn btn-ok"     type="button">Abrir Comporta</button>
+                <button id="btn-fechar"   class="btn btn-perigo" type="button">Fechar Comporta</button>
+                <button id="btn-ligar"    class="btn btn-ok"     type="button">Ligar Exaustor</button>
+                <button id="btn-desligar" class="btn btn-perigo" type="button">Desligar Exaustor</button>
+            </div>
+            <div id="feedback" class="feedback" hidden></div>
+        </section>
+
+        <section class="painel-bloco">
+            <h2>Últimas ocorrências</h2>
+            <div class="logs-scroll">
+                <table class="logs">
+                    <thead>
+                        <tr><th>Hora</th><th>Silo</th><th>Tipo</th><th>Descrição</th><th>Origem</th></tr>
+                    </thead>
+                    <tbody id="logs-corpo"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script type="module" src="js/controle.js"></script>
+</body>
+</html>
